@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shape Fader: Smooth to Bubbly</title>
+    <title>Shape Fader: Rough to Sharp</title>
     <style>
         body {
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background-color: #e8f0f3; /* Slightly different background */
+            background-color: #f5f5f5; /* Neutral background */
             font-family: sans-serif;
             flex-direction: column;
         }
@@ -30,20 +30,19 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            /* Added a subtle border to see container bounds if needed */
-            /* border: 1px dashed #ccc; */
         }
 
         .shape {
             width: 150px;
             height: 150px;
-            background-color: #5DADE2; /* A different blue */
-            /* Initial state: Smooth */
-            border-radius: 50%; /* Start as a circle */
+            background-color: #7D8A91; /* A stone-like grey */
+            /* Initial state is set by JS, but CSS provides fallback */
+            border-radius: 25%; /* Start somewhat rounded for 'rough' */
             /* Apply the SVG filter */
-            filter: url(#bubblyFilter); /* Renamed filter ID */
+            filter: url(#roughFilter); /* Renamed filter ID */
             /* Smooth transition for border-radius changes */
-            transition: border-radius 0.3s ease;
+            transition: border-radius 0.2s ease-out; /* Faster transition */
+            /* Note: Filter transition is often instant and doesn't use CSS transition */
         }
 
         label {
@@ -71,11 +70,14 @@
 
     <svg xmlns="http://www.w3.org/2000/svg" version="1.1">
         <defs>
-            <filter id="bubblyFilter">
+            <filter id="roughFilter">
                 <feTurbulence type="fractalNoise"
-                    baseFrequency="0.03" numOctaves="1"       result="turbulenceResult"/> <feGaussianBlur
-                    in="turbulenceResult" stdDeviation="4"     result="blurredTurbulence"/> <feDisplacementMap
-                    in="SourceGraphic"        in2="blurredTurbulence"   scale="0"                 xChannelSelector="R"
+                    baseFrequency="0.1"  numOctaves="2"       result="turbulenceResult"/>
+
+                <feDisplacementMap
+                    in="SourceGraphic"
+                    in2="turbulenceResult"
+                    scale="30"            xChannelSelector="R"
                     yChannelSelector="G"
                     result="displacementResult"/>
             </filter>
@@ -88,63 +90,52 @@
             <div class="shape"></div>
         </div>
 
-        <label for="bubbleFader">Adjust Effect (Smooth &lt;-&gt; Bubbly)</label>
-        <input type="range" id="bubbleFader" min="0" max="100" value="0">
+        <label for="sharpnessFader">Adjust Texture (Rough &lt;-&gt; Sharp)</label>
+        <input type="range" id="sharpnessFader" min="0" max="100" value="0">
         </div>
 
     <script>
-        // Updated variable names for clarity
-        const fader = document.getElementById('bubbleFader');
+        const fader = document.getElementById('sharpnessFader');
         const shape = document.querySelector('.shape');
+        const displacementMap = document.querySelector('#roughFilter feDisplacementMap');
 
-        // Select the displacement map within the *renamed* filter
-        const displacementMap = document.querySelector('#bubblyFilter feDisplacementMap');
+        // Define maximum roughness (filter scale) and initial roundness
+        const maxRoughnessScale = 30; // Max displacement scale when slider is at 0
+        const initialBorderRadius = 25; // Starting border radius (%) when slider is at 0
 
         if (!displacementMap) {
-            console.error("Error: Could not find the feDisplacementMap element in the SVG filter #bubblyFilter.");
+            console.error("Error: Could not find the feDisplacementMap element in the SVG filter #roughFilter.");
         }
 
-        fader.addEventListener('input', function() {
-            const value = parseInt(this.value, 10); // Slider value (0-100)
+        function updateShape(value) {
+            // Ensure value is between 0 and 100
+            const normalizedValue = Math.min(100, Math.max(0, value)) / 100; // Value between 0.0 and 1.0
 
-            // --- Control Bubbly Distortion (SVG Filter) ---
-            // Map slider (0-100) to filter's 'scale'.
-            // May need to adjust maxScale for bubbly effect. Let's try a bit higher.
-            const maxScale = 65; // Increased max displacement for a more pronounced bubbly effect
-            const scaleValue = (value / 100) * maxScale;
-
+            // --- Control Roughness (SVG Filter) ---
+            // Scale decreases as slider value increases (inverse relationship)
+            // When value=0, scale = maxRoughnessScale. When value=100, scale = 0.
+            const scaleValue = maxRoughnessScale * (1 - normalizedValue);
             if (displacementMap) {
                 displacementMap.setAttribute('scale', scaleValue);
             }
 
-            // --- Control Base Shape Smoothness (Border Radius) ---
-            // Keep the shape getting sharper corners as distortion increases.
-            // Alternatively, you could keep it 50% for max bubbliness if preferred.
-            const maxRadius = 50; // Circle
-            const minRadius = 15; // Slightly more rounded than before at max distortion
-            const radiusRange = maxRadius - minRadius;
-            const borderRadiusValue = maxRadius - ((value / 100) * radiusRange);
-
+            // --- Control Sharpness (Border Radius) ---
+            // Radius decreases as slider value increases (direct relationship to sharpness)
+            // When value=0, radius = initialBorderRadius. When value=100, radius = 0.
+            const borderRadiusValue = initialBorderRadius * (1 - normalizedValue);
             shape.style.borderRadius = `${borderRadiusValue}%`;
+        }
+
+        // Event listener for the slider
+        fader.addEventListener('input', function() {
+            updateShape(parseInt(this.value, 10));
         });
 
         // --- Set Initial State on Load ---
-        function setInitialState() {
-             const initialValue = parseInt(fader.value, 10);
-             const initialMaxScale = 65; // Use the same maxScale as in the listener
-            const initialScaleValue = (initialValue / 100) * initialMaxScale;
-             if (displacementMap) {
-                displacementMap.setAttribute('scale', initialScaleValue);
-            }
-
-            const initialMaxRadius = 50;
-            const initialMinRadius = 15; // Use the same minRadius
-            const initialRadiusRange = initialMaxRadius - initialMinRadius;
-            const initialBorderRadiusValue = initialMaxRadius - ((initialValue / 100) * initialRadiusRange);
-            shape.style.borderRadius = `${initialBorderRadiusValue}%`;
-        }
-
-        document.addEventListener('DOMContentLoaded', setInitialState);
+        // Ensures the shape starts in the correct 'rough' state based on slider's initial value
+        document.addEventListener('DOMContentLoaded', () => {
+            updateShape(parseInt(fader.value, 10));
+        });
 
     </script>
 
