@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shape Fader: Smooth to Granular</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f4f8;
+            font-family: sans-serif;
+            flex-direction: column; /* Stack elements vertically */
+        }
+
+        .container {
+            text-align: center;
+            padding: 30px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .shape-container {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 30px auto; /* Center and add space below */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .shape {
+            width: 150px;
+            height: 150px;
+            background-color: #3498db; /* A nice blue */
+            /* Initial state: Smooth */
+            border-radius: 50%; /* Start as a circle */
+            /* Apply the SVG filter */
+            filter: url(#grainFilter);
+            /* Smooth transition for border-radius changes */
+            transition: border-radius 0.3s ease;
+        }
+
+        label {
+            display: block; /* Put label on its own line */
+            margin-bottom: 10px;
+            color: #555;
+            font-size: 0.9em;
+        }
+
+        input[type="range"] {
+            width: 250px;
+            cursor: pointer;
+        }
+
+        /* Hidden SVG for filter definition */
+        svg {
+            position: absolute;
+            width: 0;
+            height: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+
+    <svg xmlns="http://www.w3.org/2000/svg" version="1.1">
+        <defs>
+            <filter id="grainFilter">
+                <feTurbulence type="fractalNoise"
+                    baseFrequency="0.15" numOctaves="3"       result="turbulenceResult"/>
+
+                <feDisplacementMap
+                    in="SourceGraphic"    in2="turbulenceResult" scale="0"             xChannelSelector="R"  yChannelSelector="G"  result="displacementResult"/>
+            </filter>
+        </defs>
+    </svg>
+
+    <div class="container">
+        <h1>Shape Fader</h1>
+        <div class="shape-container">
+            <div class="shape"></div>
+        </div>
+
+        <label for="granularityFader">Adjust Granularity (Smoothness &lt;-&gt; Grain)</label>
+        <input type="range" id="granularityFader" min="0" max="100" value="0">
+        </div>
+
+    <script>
+        const fader = document.getElementById('granularityFader');
+        const shape = document.querySelector('.shape');
+
+        // Get reference to the feDisplacementMap element within the SVG filter
+        // Important: querySelector works inside the <svg> tag too!
+        const displacementMap = document.querySelector('#grainFilter feDisplacementMap');
+
+        // Check if the filter element was found
+        if (!displacementMap) {
+            console.error("Error: Could not find the feDisplacementMap element in the SVG filter.");
+        }
+
+        fader.addEventListener('input', function() {
+            const value = parseInt(this.value, 10); // Get slider value (0-100)
+
+            // --- Control Granularity (SVG Filter) ---
+            // Map the slider value (0-100) to the filter's 'scale' attribute.
+            // Adjust the multiplier (e.g., 40) to control the maximum distortion.
+            const maxScale = 40; // Max displacement scale
+            const scaleValue = (value / 100) * maxScale;
+
+            // Update the 'scale' attribute of the feDisplacementMap filter
+            if (displacementMap) {
+                displacementMap.setAttribute('scale', scaleValue);
+            }
+
+            // --- Control Smoothness (Border Radius) ---
+            // Map the slider value (0-100) to border-radius (50% down to e.g., 5%).
+            // As granularity increases (value -> 100), radius decreases (shape gets sharper).
+            const maxRadius = 50; // 50% for circle
+            const minRadius = 5;  // 5% for slightly rounded square
+            const radiusRange = maxRadius - minRadius;
+            const borderRadiusValue = maxRadius - ((value / 100) * radiusRange); // Linear interpolation
+
+            shape.style.borderRadius = `${borderRadiusValue}%`;
+        });
+
+        // --- Set Initial State on Load ---
+        // (Optional, as initial state is mostly set by CSS and HTML 'value' attribute)
+        // Ensure the script runs *after* the elements exist.
+        // This code block can be removed if initial CSS/HTML values are sufficient.
+        function setInitialState() {
+            const initialValue = parseInt(fader.value, 10);
+             const initialMaxScale = 40;
+            const initialScaleValue = (initialValue / 100) * initialMaxScale;
+             if (displacementMap) {
+                displacementMap.setAttribute('scale', initialScaleValue);
+            }
+
+            const initialMaxRadius = 50;
+            const initialMinRadius = 5;
+            const initialRadiusRange = initialMaxRadius - initialMinRadius;
+            const initialBorderRadiusValue = initialMaxRadius - ((initialValue / 100) * initialRadiusRange);
+            shape.style.borderRadius = `${initialBorderRadiusValue}%`;
+        }
+
+        // Run initial setup when the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', setInitialState);
+
+    </script>
+
+</body>
+</html>
